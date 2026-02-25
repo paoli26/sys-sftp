@@ -1,0 +1,11 @@
+%dw 2.0
+
+type auto_2a3f9089_b705_4c41_9dce_9ae5067b028f_Input_Payload = {
+  dateTime: String, 
+  data: Array<{    price: Number,     name: String,     id: Number,     category: "Graphisme" | "Sécurité" | "Électronique" | "Audio" | "Accessoire",     stock: Number,     _?: Any  }>, 
+  correlationId: String, 
+  message: String, 
+  statusCode: Number, 
+  _?: Any
+}
+
