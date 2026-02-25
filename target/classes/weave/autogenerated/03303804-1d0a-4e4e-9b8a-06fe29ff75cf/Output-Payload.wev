@@ -1,0 +1,18 @@
+%dw 2.0
+
+type auto_03303804_1d0a_4e4e_9b8a_06fe29ff75cf_Output_Payload = Array<{  date: String,   total: Number,   LineItems: Array<{    amount: Number,     id: String,     _?: Any  }>, 
+  currency: String, 
+  id: String, 
+  customer: {
+    country: String, 
+    city: String, 
+    phone: String, 
+    postalCode: String, 
+    name: String, 
+    id: String, 
+    email: String, 
+    _?: Any
+  }, 
+  _?: Any
+}>
+
