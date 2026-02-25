@@ -1,0 +1,23 @@
+%dw 2.0
+
+type auto_2a3f9089_b705_4c41_9dce_9ae5067b028f_Input_Attributes = {|
+  clientCertificate?: {|
+    publicKey?: {|  |}, 
+    "type"?: String, 
+    encoded?: Binary
+  |}, 
+  headers: {|  |}, 
+  listenerPath: String, 
+  method: String, 
+  queryParams: {| category?: "Graphisme" | "Sécurité" | "Électronique" | "Audio" | "Accessoire" |}, 
+  queryString: String, 
+  relativePath: String, 
+  remoteAddress: String, 
+  requestPath: String, 
+  requestUri: String, 
+  scheme: String, 
+  uriParams: {| host: String |}, 
+  version: String, 
+  localAddress: String
+|}
+

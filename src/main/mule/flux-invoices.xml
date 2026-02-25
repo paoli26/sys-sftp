@@ -3,10 +3,10 @@
     <http:listener-config name="flux-invoices-httpListenerConfig">
         <http:listener-connection host="0.0.0.0" port="8081" />
     </http:listener-config>
-    <apikit:config name="flux-invoices-config" api="resource::928f4433-2102-4b4e-a443-670c2ad93f0b:flux-invoices:1.0.1:raml:zip:flux-invoices.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" queryParamsStrictValidation="true" parser="RAML"/>
+    <apikit:config name="flux-invoices-config" api="resource::928f4433-2102-4b4e-a443-670c2ad93f0b:flux-invoices:1.2.1:raml:zip:flux-invoices.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" queryParamsStrictValidation="true" />
     <configuration-properties doc:name="Configuration properties" doc:id="cf8062a2-2353-4cb8-a3d1-a1f4bbec0b6f" file="config.yaml" />
     <sftp:config name="SFTP_Config" doc:name="SFTP Config" doc:id="edd0d8c4-f485-4e2b-85ff-695ecc6db82b">
-        <sftp:connection host="${sftp.host}" port="${sftp.port}" username="${sftp.user}" password="${sftp.pass}" workingDir="${sftp.path}"/>
+        <sftp:connection host="${sftp.host}" port="${sftp.port}" username="${sftp.user}" password="${sftp.pass}"/>
     </sftp:config>
     <flow name="flux-invoices-main">
         <http:listener config-ref="flux-invoices-httpListenerConfig" path="/api/*">
@@ -133,11 +133,87 @@ output application/json
     </flow>
     <flow name="get:\invoices\(invoiceId):flux-invoices-config">
         <flow-ref doc:name="get_invoice_by_Id" doc:id="50c4d831-90e1-4d10-b8c2-deb8ebbec6ce" name="get_invoice_by_Id" />
-		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="487a0231-413c-4776-a31e-75ed99921a4f" type="VALIDATION:NULL">
-				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{ "message": "invoice not found for customer " ++ (vars.invoiceId default "") }]' doc:name="Set Payload" doc:id="30d136c9-5b51-4e4b-b84f-2da9108ae028" />
-				<set-variable value="599" doc:name="httpStatus" doc:id="01e5a38e-4a0d-4ac5-a66a-75d04c007b54" variableName="httpStatus" />
-			</on-error-propagate>
-		</error-handler>
+        <error-handler>
+            <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="487a0231-413c-4776-a31e-75ed99921a4f" type="VALIDATION:NULL">
+                <set-payload value="#[%dw 2.0&#xA;output application/json&#xA;---&#xA;{ &quot;message&quot;: &quot;invoice not found for customer &quot; ++ (vars.invoiceId default &quot;&quot;) }]" doc:name="Set Payload" doc:id="30d136c9-5b51-4e4b-b84f-2da9108ae028" />
+                <set-variable value="599" doc:name="httpStatus" doc:id="01e5a38e-4a0d-4ac5-a66a-75d04c007b54" variableName="httpStatus" />
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="delete:\products\(id):flux-invoices-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  correlationId: "fe5zef1-194b-475c-8dee-0zef56zf4180",
+  statusCode: 404,
+  namespace: "RESOURCE_NAME",
+  identifier: "NOT_FOUND",
+  description: "product not found with id xxx"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\products:flux-invoices-config">
+		<flow-ref doc:name="get_all_products" doc:id="6756c753-808a-445c-878d-1229a1563ffc" name="get_all_products"/>
+    </flow>
+    <flow name="get:\products\(id):flux-invoices-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  correlationId: "fe5zef1-194b-475c-8dee-0zef56zf4180",
+  statusCode: 404,
+  namespace: "RESOURCE_NAME",
+  identifier: "NOT_FOUND",
+  description: "product not found with id xxx"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="post:\products:application\json:flux-invoices-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  correlationId: "fe5zef1-194b-475c-8dee-0zef56zf4180",
+  statusCode: 400,
+  namespace: "APIKIT",
+  identifier: "BAD_REQUEST",
+  description: "Field xxx is missing"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="post:\products\(id):flux-invoices-config">
+        <ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"le nouveau stock pour le produit x est 5" as String {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
     </flow>
 </mule>

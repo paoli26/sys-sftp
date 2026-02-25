@@ -7,6 +7,35 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
 http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<flow name="get_all_products" doc:id="2a3f9089-b705-4c41-9dce-9ae5067b028f" >
+		<set-variable value="#[attributes.queryParams.category]" doc:name="[category]" doc:id="ed6de920-0fd5-4f0e-882e-8cef5256de62" variableName="category" />
+		<sftp:read doc:name="Read_products" doc:id="65cd7d86-257b-40e6-9f7c-a719c8b2f5af" config-ref="SFTP_Config" path="${sftp.mypath}/${sftp.products}" outputMimeType="text/csv" outputEncoding="UTF-8" timeBetweenSizeCheckUnit="HOURS" />
+		<ee:transform doc:name="Transform Message" doc:id="c0f7040b-9176-45a9-a4b9-56dbd91eb31e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+var payloadjson = if (payload is Binary) read(payload, "application/json") else payload
+
+fun payloadFiltered(payloadjson) = 
+	if(!isEmpty(vars.category))
+	    payloadjson filter $.category == (vars.category)
+	 else
+	 	payloadjson
+---
+payloadFiltered(payloadjson) map(item,index)->
+	{
+		id: item.id as Number,
+		name: item.name,
+		category: item.category,
+		price: item.price as Number,
+		stock: item.stock as Number
+		
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="DEBUG" doc:name="END" doc:id="2b8f7231-b7fd-4d6c-81a6-f603adb66296" message='#[{&#10;    step: "get all products",&#10;    data: {&#10;        business: { variable: vars.category },&#10;        technical: { }&#10; }&#10; &#10; }]'/>
+	</flow>
 	<flow name="get_invoices" doc:id="03303804-1d0a-4e4e-9b8a-06fe29ff75cf" >
 		<set-variable value="#[attributes.queryParams.currency]" doc:name="currency" doc:id="01bf2e95-4d61-434d-b28a-bcf2bd80480f" variableName="currency" />
 		<sftp:read doc:name="Read serveur SFTP" doc:id="54703331-b734-4217-b1e4-a55a330857c2" config-ref="SFTP_Config" path="${sftp.path}/${sftp.file}" outputMimeType="application/json" outputEncoding="UTF-8" timeBetweenSizeCheckUnit="HOURS" />
@@ -15,11 +44,12 @@ http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mu
 				<ee:set-payload ><![CDATA[%dw 2.0
 import doMapping from modules::InvoiceMap
 output application/json
+var payloadjson = if (payload is Binary) read(payload, "application/json") else payload
 ---
 if(!isEmpty(vars.currency))
-    doMapping(payload filter $.data.currency == lower(vars.currency))
+    doMapping(payloadjson filter $.data.currency == lower(vars.currency))
 else
-   doMapping(payload)]]></ee:set-payload>
+   doMapping(payloadjson)]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 		<logger level="INFO" doc:name="Logger" doc:id="bf9be33b-6cad-4acb-9a6c-196b607b9384" message="#[payload]" />
@@ -44,14 +74,13 @@ doMapping(
 	<flow name="get_hoinaco" doc:id="91a4f24a-13d6-47a3-9e22-618a5117b8f7" >
 		<scheduler doc:name="Scheduler" doc:id="7d2b9c65-e4ab-46c0-9ca1-d794c6a5ef7f" >
 			<scheduling-strategy >
-				<fixed-frequency frequency="2" timeUnit="SECONDS"/>
+				<fixed-frequency frequency="3" timeUnit="DAYS" startDelay="3"/>
 			</scheduling-strategy>
 		</scheduler>
-		<sftp:read doc:name="Read_hoinaco" doc:id="84c4a1a9-04bd-4096-adc8-3ed14a8956b8" config-ref="SFTP_Config" path="${sftp.fileH}" outputMimeType='application/csv; separator=";"'/>
+		<sftp:read doc:name="Read_hoinaco" doc:id="84c4a1a9-04bd-4096-adc8-3ed14a8956b8" config-ref="SFTP_Config" path="${sftp.fileH}" outputMimeType='application/csv; separator=";"' outputEncoding="UTF-8"/>
 		<ee:transform doc:name="Transform Message" doc:id="ad7c5dc2-af9d-4597-870a-e5efcb938341" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
-
 
 output application/CSV separator=";", header=true
 
@@ -82,8 +111,9 @@ fun typeOccupation(occupation) = occupation match
         case "CLD"->"M"
 		else -> occupation
 	}
+var payloadjson = if (payload is Binary) read(payload, "application/json") else payload	
 ---
-payload map (item,index)->
+payloadjson map (item,index)->
 {
 	matricule: item.CODSEL,
 	codeCentre: "",
@@ -108,43 +138,5 @@ payload map (item,index)->
 		<sftp:write doc:name="Write" doc:id="23cb886d-2458-4dc5-be05-5690ff617622" config-ref="SFTP_Config" path='#["/upload/theu/Paulita/extract/hoinaco_" ++ (now() as String {format: "yyyyMMddHHmmss"}) ++ ".csv"]'/>
 		<set-payload value='Le fichier a été bien enregistré' doc:name="Set Payload" doc:id="c5ebd13b-d878-4a6e-9ddf-3b57500a37f5" />
 		<logger level="INFO" doc:name="Logger" doc:id="4d052f89-3e42-4591-8cff-6e95bb424e49" message='#[payload]'/>
-	</flow>
-	<flow name="get_hoinaco1" doc:id="b82d065a-198c-44cd-8e1a-0980e1459fbb" >
-		<scheduler doc:name="Scheduler" doc:id="ec101e41-a916-483d-9d05-98f7b3cfc605" >
-			<scheduling-strategy >
-				<fixed-frequency frequency="1" timeUnit="DAYS" startDelay="2"/>
-			</scheduling-strategy>
-		</scheduler>
-		<sftp:list doc:name="List" doc:id="0868f458-6469-4bec-b713-7ce186230a6b" config-ref="SFTP_Config" directoryPath="/upload/theu/Paulita"/>
-		<ee:transform doc:name="Transform Message" doc:id="7651f58b-e08b-4a59-b46a-22ec090793dd" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
-
-
-output application/json
-
-fun transformOperation(operation) = operation match
-	{	case "SUP"->"S"
-		case "CRE"->"X"
-		else -> operation
-	}
-	
----
-payload map (item,index)->
-{
-	matricule: item.CODSEL,
-	codeCentre: "",
-	typeOcupation:"RG1",
-	natureOccupation: "RG2",
-	dateDebut: "RG3",
-	dateFin:"RG4",
-	operation: transformOperation(item.LIG)
-
-}]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
-		<logger level="INFO" doc:name="Logger" doc:id="62832367-0dba-46e0-829d-5fac92bae525" message="#[payload]" />
-		<sftp:move doc:name="Move" doc:id="14c51878-9481-4d8a-88f8-1cea2d8cdd3f" config-ref="SFTP_Config" sourcePath="#[attributes.path]" targetPath="${sftp.mypath}" renameTo='#[attributes.fileName ++ "_" ++ (now() as String {format: "yyyyMMddHHmmss"})]' />
-		<logger level="INFO" doc:name="Logger1" doc:id="e1d9d65b-a7d5-430f-9bf0-df829b7bd0a2" message="#[payload]" />
 	</flow>
 </mule>
