@@ -29,7 +29,7 @@ payloadFiltered(payloadjson) map(item,index)->
 		name: item.name,
 		category: item.category,
 		price: item.price as Number,
-		stock: item.stock as Number
+		stock: item.stock as Number default 0
 		
 	}]]></ee:set-payload>
 			</ee:message>
@@ -40,25 +40,23 @@ payloadFiltered(payloadjson) map(item,index)->
 				<ee:transform doc:name="Transform Message" doc:id="f872daf4-40f3-40e5-82d7-c7f6452c264c">
 					<ee:message>
 						<ee:set-payload><![CDATA[%dw 2.0
-output application/csv header=false
+output application/csv 
 ---
-[
-    {
-        "id": vars.newProductData.id,
-        "name": vars.newProductData.name,
-        "category": vars.newProductData.category,
-        "price": vars.newProductData.price,
-        "stock": vars.newProductData.stock
-    }
-]]]></ee:set-payload>
+payload map (item) -> 
+	if (item.id == vars.productId) 
+   		item update {
+            case .stock -> (item.stock default 0) + 1
+        }
+    else item]]></ee:set-payload>
 					</ee:message>
 				</ee:transform>
-				<sftp:write doc:name="post_product" doc:id="779fa432-b509-4f93-bc2e-8cbe70a7c60f" config-ref="SFTP_Config" path="${sftp.mypath}/${sftp.products}" mode="CUSTOM_APPEND" />
-				<logger level="INFO" doc:name="END" doc:id="bc589291-6d6a-40c7-95a9-c816780c0af2" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;create a product&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;message&quot;: &quot;add new product: &quot; ++ (vars.newProductData.name default &quot;&quot;),&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]" />
+				<sftp:write doc:name="post_product" doc:id="779fa432-b509-4f93-bc2e-8cbe70a7c60f" config-ref="SFTP_Config" path="${sftp.mypath}/${sftp.products}"/>
+				<set-payload value='#["message": "add stock for product: " ++ (vars.productId default "")]' doc:name="ItemIncrement" doc:id="1d07b3e9-379d-4325-8112-66c38c842c1c" />
+				<logger level="INFO" doc:name="END" doc:id="bc589291-6d6a-40c7-95a9-c816780c0af2" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;increment stock&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;message&quot;: &quot;add stock for product: &quot; ++ (vars.productId default &quot;&quot;),&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]" />
 			</when>
 			<otherwise>
-				<set-payload value="NOT_ACCEPTABLE" doc:name="IdDejaExistant" doc:id="be003170-d513-4649-b149-2882faccd545" />
-				<logger level="INFO" doc:name="END" doc:id="6ae24c73-0dc3-4b78-8fd3-364346221d0f" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;create a product&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;message&quot;: &quot;product: &quot; ++ (vars.newProductData.id default &quot;&quot;)++&quot; already exist: &quot;,&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]" />
+				<set-payload value="NOT_FOUND" doc:name="IdAbsent" doc:id="be003170-d513-4649-b149-2882faccd545" />
+				<logger level="INFO" doc:name="END" doc:id="6ae24c73-0dc3-4b78-8fd3-364346221d0f" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;increment stock&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;message&quot;: &quot;product: &quot; ++ (vars.newProductData.id default &quot;&quot;)++&quot; do not exist: &quot;,&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]" />
 			</otherwise>
 		</choice>
 	</flow>
@@ -153,7 +151,7 @@ payloadFiltered(payloadjson) map(item,index)->
 		name: item.name,
 		category: item.category,
 		price: item.price as Number,
-		stock: item.stock as Number
+		stock: item.stock as Number default 0
 		
 	}]]></ee:set-payload>
 			</ee:message>
