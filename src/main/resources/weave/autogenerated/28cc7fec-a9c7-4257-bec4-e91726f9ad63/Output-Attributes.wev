@@ -1,6 +1,6 @@
 %dw 2.0
 
-type auto_03303804_1d0a_4e4e_9b8a_06fe29ff75cf_Input_Attributes = {|
+type auto_28cc7fec_a9c7_4257_bec4_e91726f9ad63_Output_Attributes = {|
   clientCertificate?: {|
     publicKey?: {|  |}, 
     "type"?: String, 
@@ -9,14 +9,14 @@ type auto_03303804_1d0a_4e4e_9b8a_06fe29ff75cf_Input_Attributes = {|
   headers: {|  |}, 
   listenerPath: String, 
   method: String, 
-  queryParams: {| code?: "EUR" | "USD" |}, 
+  queryParams: {|  |}, 
   queryString: String, 
   relativePath: String, 
   remoteAddress: String, 
   requestPath: String, 
   requestUri: String, 
   scheme: String, 
-  uriParams: {|  |}, 
+  uriParams: {| host: String |}, 
   version: String, 
   localAddress: String
 |}

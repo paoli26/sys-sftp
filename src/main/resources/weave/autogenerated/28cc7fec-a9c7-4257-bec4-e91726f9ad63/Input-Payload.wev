@@ -1,0 +1,11 @@
+%dw 2.0
+
+type auto_28cc7fec_a9c7_4257_bec4_e91726f9ad63_Input_Payload = {
+  price: Number, 
+  name: String, 
+  id: Number, 
+  category: "Graphisme" | "Sécurité" | "Électronique" | "Stockage" | "Audio" | "Accessoire", 
+  stock: Number, 
+  _?: Any
+}
+
