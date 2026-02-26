@@ -8,18 +8,18 @@
     <sftp:config name="SFTP_Config" doc:name="SFTP Config" doc:id="edd0d8c4-f485-4e2b-85ff-695ecc6db82b">
         <sftp:connection host="${sftp.host}" port="${sftp.port}" username="${sftp.user}" password="${sftp.pass}"/>
     </sftp:config>
-    <flow name="flux-invoices-main">
-        <http:listener config-ref="flux-invoices-httpListenerConfig" path="/api/*">
-            <repeatable-in-memory-stream />
-            <http:response statusCode="#[vars.httpStatus default 200]">
-                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
-            </http:response>
-            <http:error-response statusCode="#[vars.httpStatus default 500]">
-                <http:body><![CDATA[#[payload]]]></http:body>
-                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
-            </http:error-response>
-        </http:listener>
-        <apikit:router config-ref="flux-invoices-config" />
+	<flow name="flux-invoices-main">
+		<http:listener doc:name="Listener" doc:id="e7a32a63-b2e1-4e86-a4ec-4f2379f1b222" config-ref="flux-invoices-httpListenerConfig" path="/api/*">
+			<http:response statusCode="#[vars.httpStatus default 200]">
+				<http:body><![CDATA[#[payload]]]></http:body>
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:response>
+			<http:error-response statusCode="#[vars.httpStatus default 500]">
+				<http:body><![CDATA[#[payload]]]></http:body>
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<apikit:router config-ref="flux-invoices-config" />
         <error-handler>
             <on-error-propagate type="APIKIT:BAD_REQUEST">
                 <ee:transform doc:name="Transform Message">
@@ -66,12 +66,13 @@ output application/json
                         <ee:set-payload><![CDATA[%dw 2.0
 output application/json
 ---
-{message: "Not acceptable"}]]></ee:set-payload>
+{message: " NOT_ACCEPTABLE"}]]></ee:set-payload>
                     </ee:message>
                     <ee:variables>
-                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[406]]></ee:set-variable>
                     </ee:variables>
                 </ee:transform>
+				<set-variable value="406" doc:name="SetHttpStatus" doc:id="07c09951-bf49-47ef-a16c-b0e1be81751d" variableName="httpStatus" />
             </on-error-propagate>
             <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
                 <ee:transform doc:name="Transform Message">
@@ -99,33 +100,20 @@ output application/json
                     </ee:variables>
                 </ee:transform>
             </on-error-propagate>
-        </error-handler>
-    </flow>
-    <flow name="flux-invoices-console">
-        <http:listener config-ref="flux-invoices-httpListenerConfig" path="/console/*">
-            <http:response statusCode="#[vars.httpStatus default 200]">
-                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
-            </http:response>
-            <http:error-response statusCode="#[vars.httpStatus default 500]">
-                <http:body>#[payload]</http:body>
-                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
-            </http:error-response>
-        </http:listener>
-        <apikit:console config-ref="flux-invoices-config" />
-        <error-handler>
-            <on-error-propagate type="APIKIT:NOT_FOUND">
-                <ee:transform doc:name="Transform Message">
-                    <ee:message>
-                        <ee:set-payload><![CDATA[%dw 2.0
+			<!-- [STUDIO:"On Error Propagate"]<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="bdf99985-f058-472b-8f0d-cc6098ad73ac" type="APP:NOT_ACCEPTABLE" >
+				<ee:transform doc:name="Transform Message" doc:id="1fa1379c-52df-4b43-99c8-4f64053fe759">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
 output application/json
----
-{message: "Resource not found"}]]></ee:set-payload>
-                    </ee:message>
-                    <ee:variables>
-                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
-                    </ee:variables>
-                </ee:transform>
-            </on-error-propagate>
+&#45;&#45;-
+{message: " NOT_ACCEPTABLE"}&#93;&#93;></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[406&#93;&#93;></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<set-variable value="406" doc:name="SetHttpStatus" doc:id="c303c880-a925-4325-91a3-441c37c210f1" variableName="httpStatus" />
+			</on-error-propagate> [STUDIO] -->
         </error-handler>
     </flow>
     <flow name="get:\invoices:flux-invoices-config">
@@ -161,7 +149,7 @@ output application/json
             </ee:message>
         </ee:transform>
     </flow>
-    <flow name="get:\products:flux-invoices-config">
+	<flow name="get:\products:flux-invoices-config">
 		<flow-ref doc:name="get_all_products" doc:id="6756c753-808a-445c-878d-1229a1563ffc" name="get_all_products"/>
     </flow>
     <flow name="get:\products\(id):flux-invoices-config">
@@ -186,34 +174,9 @@ output application/json
         </ee:transform>
     </flow>
     <flow name="post:\products:application\json:flux-invoices-config">
-        <ee:transform doc:name="Transform Message">
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{
-  correlationId: "fe5zef1-194b-475c-8dee-0zef56zf4180",
-  statusCode: 400,
-  namespace: "APIKIT",
-  identifier: "BAD_REQUEST",
-  description: "Field xxx is missing"
-} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+		<flow-ref doc:name="post_one_product" doc:id="dd30d298-536b-4836-b549-ae5601cb5a27" name="post_one_product"/>
     </flow>
     <flow name="post:\products\(id):flux-invoices-config">
-        <ee:transform doc:name="Transform Message">
-            <ee:variables>
-                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
-            </ee:variables>
-        </ee:transform>
-        <ee:transform doc:name="Transform Message">
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-"le nouveau stock pour le produit x est 5" as String {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+		<flow-ref doc:name="add_stock" doc:id="7143fcea-618c-4c7d-ac29-54d1438129e5" name="add_stock"/>
     </flow>
 </mule>

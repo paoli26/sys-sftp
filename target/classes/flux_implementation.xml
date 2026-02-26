@@ -7,6 +7,130 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
 http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<flow name="add_stock" doc:id="f8dbceec-5e29-423c-8299-0373545da2a6">
+		<set-variable value="#[attributes.uriParams.id]" doc:name="[productId]" doc:id="e09d31ba-1479-41ee-b54b-45ea3e76115f" variableName="productId" mimeType="application/json" />
+		<sftp:read doc:name="Read_products" doc:id="7c9a33f5-3bd5-4252-83f3-3c0d9b7003bc" config-ref="SFTP_Config" path="${sftp.mypath}/${sftp.products}" outputMimeType="text/csv" outputEncoding="UTF-8" timeBetweenSizeCheckUnit="HOURS" />
+		<ee:transform doc:name="Transform Message1" doc:id="f9ee4de0-aec1-4189-b6f6-dca4258f5681">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+
+var payloadjson = if (payload is Binary) read(payload, "application/json") else payload
+
+fun payloadFiltered(payloadjson) = 
+	if(!isEmpty(vars.category))
+	    payloadjson filter $.category == (vars.category)
+	 else
+	 	payloadjson
+---
+payloadFiltered(payloadjson) map(item,index)->
+	{
+		id: item.id as Number,
+		name: item.name,
+		category: item.category,
+		price: item.price as Number,
+		stock: item.stock as Number
+		
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="902bdf35-e6ea-41f7-b052-5b17dc836144" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{ "MonPayload": payload, "MaVariable": vars.productId }]' />
+		<choice doc:name="Choice" doc:id="709727b1-9bcd-4117-9614-44515d782be7">
+			<when expression="#[payload.id contains vars.productId]">
+				<ee:transform doc:name="Transform Message" doc:id="f872daf4-40f3-40e5-82d7-c7f6452c264c">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/csv header=false
+---
+[
+    {
+        "id": vars.newProductData.id,
+        "name": vars.newProductData.name,
+        "category": vars.newProductData.category,
+        "price": vars.newProductData.price,
+        "stock": vars.newProductData.stock
+    }
+]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<sftp:write doc:name="post_product" doc:id="779fa432-b509-4f93-bc2e-8cbe70a7c60f" config-ref="SFTP_Config" path="${sftp.mypath}/${sftp.products}" mode="CUSTOM_APPEND" />
+				<logger level="INFO" doc:name="END" doc:id="bc589291-6d6a-40c7-95a9-c816780c0af2" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;create a product&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;message&quot;: &quot;add new product: &quot; ++ (vars.newProductData.name default &quot;&quot;),&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]" />
+			</when>
+			<otherwise>
+				<set-payload value="NOT_ACCEPTABLE" doc:name="IdDejaExistant" doc:id="be003170-d513-4649-b149-2882faccd545" />
+				<logger level="INFO" doc:name="END" doc:id="6ae24c73-0dc3-4b78-8fd3-364346221d0f" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;create a product&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;message&quot;: &quot;product: &quot; ++ (vars.newProductData.id default &quot;&quot;)++&quot; already exist: &quot;,&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="post_one_product" doc:id="28cc7fec-a9c7-4257-bec4-e91726f9ad63" >
+		<ee:transform doc:name="Transform Message" doc:id="21a066b9-0eb8-4094-ba45-4eeaeb0ad2dc">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json 
+---
+{
+    id: payload.id as Number,
+    name: payload.name,
+    category: payload.category,
+    price: payload.price as Number,
+    stock: payload.stock as Number
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload]" doc:name="[newProductData]" doc:id="efe6da6d-c50d-4bc4-be20-d5f4d8e228cf" variableName="newProductData" mimeType="application/json"/>
+		<sftp:read doc:name="Read_products" doc:id="5fac0e71-df90-4a3b-a98e-a10848798f5f" config-ref="SFTP_Config" path="${sftp.mypath}/${sftp.products}" outputMimeType="text/csv" outputEncoding="UTF-8" timeBetweenSizeCheckUnit="HOURS" />
+		<ee:transform doc:name="Transform Message2" doc:id="7f9fadb2-1abb-4b28-9405-6239f3bb36b1">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+
+var payloadjson = if (payload is Binary) read(payload, "application/json") else payload
+
+fun payloadFiltered(payloadjson) = 
+	if(!isEmpty(vars.category))
+	    payloadjson filter $.category == (vars.category)
+	 else
+	 	payloadjson
+---
+payloadFiltered(payloadjson) map(item,index)->
+	{
+		id: item.id as Number,
+		name: item.name,
+		category: item.category,
+		price: item.price as Number,
+		stock: item.stock as Number
+		
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="b875d6bf-7592-4135-9b28-e3b3669e0ac6" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{ "MonPayload": payload, "MaVariable": vars.newProductData }]' />
+		<choice doc:name="Choice" doc:id="f51e0c49-783c-4618-9def-e33ae9282c98" >
+			<when expression="#[not (payload.id contains vars.newProductData.id)]">
+				<ee:transform doc:name="Transform Message" doc:id="75450e1d-18c0-40ac-96f7-1097bd01cefa">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/csv header=false
+---
+[
+    {
+        "id": vars.newProductData.id,
+        "name": vars.newProductData.name,
+        "category": vars.newProductData.category,
+        "price": vars.newProductData.price,
+        "stock": vars.newProductData.stock
+    }
+]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<sftp:write doc:name="post_product" doc:id="16f2c18d-5f86-4f93-9a86-a98f9168ee85" config-ref="SFTP_Config" path="${sftp.mypath}/${sftp.products}" mode="APPEND" />
+				<logger level="INFO" doc:name="END" doc:id="b75b852b-c494-42a7-b507-45a68d7eefed" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;create a product&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;message&quot;: &quot;add new product: &quot; ++ (vars.newProductData.name default &quot;&quot;),&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]" />
+			</when>
+			<otherwise>
+				<set-payload value="NOT_ACCEPTABLE" doc:name="IdDejaExistant" doc:id="0448e342-bf90-4b11-8dff-640a0254d7ab" />
+				<logger level="INFO" doc:name="END" doc:id="66f863ff-08d8-4f9d-9388-59bf359b08af" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;create a product&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;message&quot;: &quot;product: &quot; ++ (vars.newProductData.id default &quot;&quot;)++&quot; already exist: &quot;,&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]" />
+			</otherwise>
+		</choice>
+	</flow>
 	<flow name="get_all_products" doc:id="2a3f9089-b705-4c41-9dce-9ae5067b028f" >
 		<set-variable value="#[attributes.queryParams.category]" doc:name="[category]" doc:id="ed6de920-0fd5-4f0e-882e-8cef5256de62" variableName="category" />
 		<sftp:read doc:name="Read_products" doc:id="65cd7d86-257b-40e6-9f7c-a719c8b2f5af" config-ref="SFTP_Config" path="${sftp.mypath}/${sftp.products}" outputMimeType="text/csv" outputEncoding="UTF-8" timeBetweenSizeCheckUnit="HOURS" />
@@ -34,7 +158,7 @@ payloadFiltered(payloadjson) map(item,index)->
 	}]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<logger level="DEBUG" doc:name="END" doc:id="2b8f7231-b7fd-4d6c-81a6-f603adb66296" message='#[{&#10;    step: "get all products",&#10;    data: {&#10;        business: { variable: vars.category },&#10;        technical: { }&#10; }&#10; &#10; }]'/>
+		<logger level="INFO" doc:name="END" doc:id="2b8f7231-b7fd-4d6c-81a6-f603adb66296" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  &quot;step&quot;: &quot;get_all_products&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;business&quot;: {&#10;      &quot;[category]&quot;: vars.category,&#10;      &quot;message&quot;: &quot;Retrieve products from category:&quot; ++ (vars.category default &quot;all&quot;),&#10;      &quot;status&quot;: &quot;success&quot;&#10;    },&#10;    &quot;technical&quot;: {&#10;      &quot;timestamp&quot;: now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;}&#10;    }&#10;  }&#10;}]"/>
 	</flow>
 	<flow name="get_invoices" doc:id="03303804-1d0a-4e4e-9b8a-06fe29ff75cf" >
 		<set-variable value="#[attributes.queryParams.currency]" doc:name="currency" doc:id="01bf2e95-4d61-434d-b28a-bcf2bd80480f" variableName="currency" />
