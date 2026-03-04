@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd">
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
     <http:listener-config name="flux-invoices-httpListenerConfig">
         <http:listener-connection host="0.0.0.0" port="8081" />
     </http:listener-config>
     <apikit:config name="flux-invoices-config" api="resource::928f4433-2102-4b4e-a443-670c2ad93f0b:flux-invoices:1.2.1:raml:zip:flux-invoices.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" queryParamsStrictValidation="true" />
-    <configuration-properties doc:name="Configuration properties" doc:id="cf8062a2-2353-4cb8-a3d1-a1f4bbec0b6f" file="config.yaml" />
+    <configuration-properties doc:name="Configuration properties" doc:id="cf8062a2-2353-4cb8-a3d1-a1f4bbec0b6f" file="config/${mule.env}-config.yaml" />
     <sftp:config name="SFTP_Config" doc:name="SFTP Config" doc:id="edd0d8c4-f485-4e2b-85ff-695ecc6db82b">
         <sftp:connection host="${sftp.host}" port="${sftp.port}" username="${sftp.user}" password="${sftp.pass}"/>
     </sftp:config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="97b16704-63d9-46e0-a9e4-edca31931b1c" file="config/secure-config/${mule.env}-secure-config.yaml" key="${mule.encryptionKey}" />
+	<configuration doc:name="Configuration" doc:id="275a4eab-b2a0-4972-8877-04f5070192b7" defaultErrorHandler-ref="globalError_Handler" />
 	<flow name="flux-invoices-main">
 		<http:listener doc:name="Listener" doc:id="e7a32a63-b2e1-4e86-a4ec-4f2379f1b222" config-ref="flux-invoices-httpListenerConfig" path="/api/*">
 			<http:response statusCode="#[vars.httpStatus default 200]">
@@ -20,101 +23,6 @@
 			</http:error-response>
 		</http:listener>
 		<apikit:router config-ref="flux-invoices-config" />
-        <error-handler>
-            <on-error-propagate type="APIKIT:BAD_REQUEST">
-                <ee:transform doc:name="Transform Message">
-                    <ee:message>
-                        <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{message: "Bad_Request"}]]></ee:set-payload>
-                    </ee:message>
-                    <ee:variables>
-                        <ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
-                    </ee:variables>
-                </ee:transform>
-            </on-error-propagate>
-            <on-error-propagate type="APIKIT:NOT_FOUND">
-                <ee:transform doc:name="Transform Message">
-                    <ee:message>
-                        <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{message: "Resource not found"}]]></ee:set-payload>
-                    </ee:message>
-                    <ee:variables>
-                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
-                    </ee:variables>
-                </ee:transform>
-            </on-error-propagate>
-            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
-                <ee:transform doc:name="Transform Message">
-                    <ee:message>
-                        <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{message: "Method not allowed"}]]></ee:set-payload>
-                    </ee:message>
-                    <ee:variables>
-                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
-                    </ee:variables>
-                </ee:transform>
-            </on-error-propagate>
-            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
-                <ee:transform doc:name="Transform Message">
-                    <ee:message>
-                        <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{message: " NOT_ACCEPTABLE"}]]></ee:set-payload>
-                    </ee:message>
-                    <ee:variables>
-                        <ee:set-variable variableName="httpStatus"><![CDATA[406]]></ee:set-variable>
-                    </ee:variables>
-                </ee:transform>
-				<set-variable value="406" doc:name="SetHttpStatus" doc:id="07c09951-bf49-47ef-a16c-b0e1be81751d" variableName="httpStatus" />
-            </on-error-propagate>
-            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
-                <ee:transform doc:name="Transform Message">
-                    <ee:message>
-                        <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{message: "Unsupported media type"}]]></ee:set-payload>
-                    </ee:message>
-                    <ee:variables>
-                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
-                    </ee:variables>
-                </ee:transform>
-            </on-error-propagate>
-            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
-                <ee:transform doc:name="Transform Message">
-                    <ee:message>
-                        <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{message: "Not Implemented"}]]></ee:set-payload>
-                    </ee:message>
-                    <ee:variables>
-                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
-                    </ee:variables>
-                </ee:transform>
-            </on-error-propagate>
-			<!-- [STUDIO:"On Error Propagate"]<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="bdf99985-f058-472b-8f0d-cc6098ad73ac" type="APP:NOT_ACCEPTABLE" >
-				<ee:transform doc:name="Transform Message" doc:id="1fa1379c-52df-4b43-99c8-4f64053fe759">
-					<ee:message>
-						<ee:set-payload><![CDATA[%dw 2.0
-output application/json
-&#45;&#45;-
-{message: " NOT_ACCEPTABLE"}&#93;&#93;></ee:set-payload>
-					</ee:message>
-					<ee:variables>
-						<ee:set-variable variableName="httpStatus"><![CDATA[406&#93;&#93;></ee:set-variable>
-					</ee:variables>
-				</ee:transform>
-				<set-variable value="406" doc:name="SetHttpStatus" doc:id="c303c880-a925-4325-91a3-441c37c210f1" variableName="httpStatus" />
-			</on-error-propagate> [STUDIO] -->
-        </error-handler>
     </flow>
     <flow name="get:\invoices:flux-invoices-config">
         <flow-ref doc:name="get_invoices" doc:id="7fcf9f18-d1fd-4370-a4cc-d737c506cc33" name="get_invoices" />
@@ -129,36 +37,18 @@ output application/json
         </error-handler>
     </flow>
     <flow name="delete:\products\(id):flux-invoices-config">
-		<flow-ref doc:name="Flow Reference" doc:id="27700883-80b1-47bb-b6b0-53765b924598" name="delete_stock_or_product"/>
+		<flow-ref doc:name="sub-stock-product-delete" doc:id="27700883-80b1-47bb-b6b0-53765b924598" name="sub-stock-product-delete"/>
     </flow>
 	<flow name="get:\products:flux-invoices-config">
-		<flow-ref doc:name="get_all_products" doc:id="6756c753-808a-445c-878d-1229a1563ffc" name="get_all_products"/>
+		<flow-ref doc:name="sub-products-get-all" doc:id="6756c753-808a-445c-878d-1229a1563ffc" name="sub-products-get-all"/>
     </flow>
     <flow name="get:\products\(id):flux-invoices-config">
-        <ee:transform doc:name="Transform Message">
-            <ee:variables>
-                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
-            </ee:variables>
-        </ee:transform>
-        <ee:transform doc:name="Transform Message">
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{
-  correlationId: "fe5zef1-194b-475c-8dee-0zef56zf4180",
-  statusCode: 404,
-  namespace: "RESOURCE_NAME",
-  identifier: "NOT_FOUND",
-  description: "product not found with id xxx"
-} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+		<flow-ref doc:name="sub-product-get-one" doc:id="43622d14-e2a4-4edb-98e9-a5728c130d51" name="sub-product-get-one"/>
     </flow>
     <flow name="post:\products:application\json:flux-invoices-config">
-		<flow-ref doc:name="post_one_product" doc:id="dd30d298-536b-4836-b549-ae5601cb5a27" name="post_one_product"/>
+		<flow-ref doc:name="sub-products-create" doc:id="dd30d298-536b-4836-b549-ae5601cb5a27" name="sub-products-create"/>
     </flow>
     <flow name="post:\products\(id):flux-invoices-config">
-		<flow-ref doc:name="add_stock" doc:id="7143fcea-618c-4c7d-ac29-54d1438129e5" name="add_stock"/>
+		<flow-ref doc:name="sub-stock-increment" doc:id="7143fcea-618c-4c7d-ac29-54d1438129e5" name="sub-stock-increment"/>
     </flow>
 </mule>
